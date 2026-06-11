@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# ATU-100 EXT firmware regression guard
+# Verifies known fixes are intact before any commit touches firmware files.
+#
+# Install: cp hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+
+MAIN_H="ATU_100_EXT_board/FirmWare_PIC16F1938/1938_EXT_MPLAB_sources_V_3.2/main.h"
+MAIN_C="ATU_100_EXT_board/FirmWare_PIC16F1938/1938_EXT_MPLAB_sources_V_3.2/main.c"
+
+# Only run when firmware files are staged
+if ! git diff --cached --name-only | grep -qE "1938_EXT_MPLAB_sources_V_3\.2/(main\.h|main\.c)$"; then
+  exit 0
+fi
+
+echo "--- ATU firmware checks ---"
+FAIL=0
+
+# Fix 1: lcd_swr() must use parameter swr, not global g_i_SWR
+if grep -qE 'if\s*\(\s*swr\s*==\s*0\s*\)' "$MAIN_C" 2>/dev/null; then
+  echo "PASS  Fix 1: lcd_swr() uses if (swr == 0)"
+else
+  echo "FAIL  Fix 1: lcd_swr() parameter check not found — check manually"
+  FAIL=1
+fi
+
+# Fix 2a: coarse_cap() must not have else break and must use strict min_swr = g_i_SWR
+if awk '/void coarse_cap/,/^}/' "$MAIN_H" 2>/dev/null | grep -q 'else.*break'; then
+  echo "FAIL  Fix 2a: else break still present in coarse_cap()"
+  FAIL=1
+elif ! awk '/void coarse_cap/,/^}/' "$MAIN_H" 2>/dev/null | grep -qE 'l_coarse_cap_min_swr\s*=\s*g_i_SWR\s*;'; then
+  echo "FAIL  Fix 2a: strict min_swr = g_i_SWR not found in coarse_cap()"
+  FAIL=1
+else
+  echo "PASS  Fix 2a: coarse_cap() non-greedy with strict comparison"
+fi
+
+# Fix 2b: coarse_tune() must start with min_swr = 9999 and have no else break
+if awk '/void coarse_tune/,/^}/' "$MAIN_H" 2>/dev/null | grep -q 'else.*break'; then
+  echo "FAIL  Fix 2b: else break still present in coarse_tune()"
+  FAIL=1
+elif ! awk '/void coarse_tune/,/^}/' "$MAIN_H" 2>/dev/null | grep -q 'l_coarse_tune_min_swr = 9999'; then
+  echo "FAIL  Fix 2b: min_swr = 9999 not found in coarse_tune()"
+  FAIL=1
+else
+  echo "PASS  Fix 2b: coarse_tune() non-greedy with min_swr = 9999"
+fi
+
+# Fix 3: sub_tune() SW-revert block must call get_swr(), not assign g_i_SWR = l_int_swr_mem
+if grep -q 'g_i_SWR = l_int_swr_mem' "$MAIN_H" 2>/dev/null; then
+  echo "FAIL  Fix 3: sub_tune() still uses g_i_SWR = l_int_swr_mem (stale assignment)"
+  FAIL=1
+elif awk '/void sub_tune/,/^}/' "$MAIN_H" 2>/dev/null | grep -q 'get_swr()'; then
+  echo "PASS  Fix 3: sub_tune() calls get_swr() after SW-revert"
+else
+  echo "WARN  Fix 3: get_swr() not found in sub_tune() — check manually"
+fi
+
+echo "---------------------------"
+if [ $FAIL -ne 0 ]; then
+  echo "Firmware regression detected. Run /atu-review for full analysis."
+  echo "Commit blocked."
+  exit 1
+fi
+echo "All checks passed."
+exit 0

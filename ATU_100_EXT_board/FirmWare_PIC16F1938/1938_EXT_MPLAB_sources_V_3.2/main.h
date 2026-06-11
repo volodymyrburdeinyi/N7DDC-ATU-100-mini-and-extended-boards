@@ -333,7 +333,7 @@ void coarse_cap()
    get_swr();
    if (g_i_SWR == 0)
       return;
-   l_coarse_cap_min_swr = g_i_SWR + g_i_SWR / 20;
+   l_coarse_cap_min_swr = g_i_SWR;
    for (l_coarse_cap_count = l_coarse_cap_step; l_coarse_cap_count <= 31;)
    {
       set_cap(l_coarse_cap_count * g_c_C_mult);
@@ -342,22 +342,20 @@ void coarse_cap()
          return;
       if (g_i_SWR < l_coarse_cap_min_swr)
       {
-         l_coarse_cap_min_swr = g_i_SWR + g_i_SWR / 20;
+         l_coarse_cap_min_swr = g_i_SWR;
          g_c_cap = l_coarse_cap_count * g_c_C_mult;
          g_c_step_cap = l_coarse_cap_step;
          if (g_i_SWR < 120)
             break;
-         l_coarse_cap_count += l_coarse_cap_step;
-         if (e_c_b_C_linear == 0 & l_coarse_cap_count == 9)
-            l_coarse_cap_count = 8;
-         else if (e_c_b_C_linear == 0 & l_coarse_cap_count == 17)
-         {
-            l_coarse_cap_count = 16;
-            l_coarse_cap_step = 4;
-         }
       }
-      else
-         break;
+      l_coarse_cap_count += l_coarse_cap_step;
+      if (e_c_b_C_linear == 0 & l_coarse_cap_count == 9)
+         l_coarse_cap_count = 8;
+      else if (e_c_b_C_linear == 0 & l_coarse_cap_count == 17)
+      {
+         l_coarse_cap_count = 16;
+         l_coarse_cap_step = 4;
+      }
    }
    set_cap(g_c_cap);
    return;
@@ -373,7 +371,7 @@ void coarse_tune()
    l_coarse_tune_mem_cap = 0;
    g_c_step_ind = l_coarse_tune_step;
    l_coarse_tune_mem_step_cap = 3;
-   l_coarse_tune_min_swr = g_i_SWR + g_i_SWR / 20;
+   l_coarse_tune_min_swr = 9999;
    for (l_coarse_tune_count = 0; l_coarse_tune_count <= 31;)
    {
       set_ind(l_coarse_tune_count * g_c_L_mult);
@@ -383,24 +381,22 @@ void coarse_tune()
          return;
       if (g_i_SWR < l_coarse_tune_min_swr)
       {
-         l_coarse_tune_min_swr = g_i_SWR + g_i_SWR / 20;
+         l_coarse_tune_min_swr = g_i_SWR;
          g_c_ind = l_coarse_tune_count * g_c_L_mult;
          l_coarse_tune_mem_cap = g_c_cap;
          g_c_step_ind = l_coarse_tune_step;
          l_coarse_tune_mem_step_cap = g_c_step_cap;
          if (g_i_SWR < 120)
             break;
-         l_coarse_tune_count += l_coarse_tune_step;
-         if (e_c_b_L_linear == 0 & l_coarse_tune_count == 9)
-            l_coarse_tune_count = 8;
-         else if (e_c_b_L_linear == 0 & l_coarse_tune_count == 17)
-         {
-            l_coarse_tune_count = 16;
-            l_coarse_tune_step = 4;
-         }
       }
-      else
-         break;
+      l_coarse_tune_count += l_coarse_tune_step;
+      if (e_c_b_L_linear == 0 & l_coarse_tune_count == 9)
+         l_coarse_tune_count = 8;
+      else if (e_c_b_L_linear == 0 & l_coarse_tune_count == 17)
+      {
+         l_coarse_tune_count = 16;
+         l_coarse_tune_step = 4;
+      }
    }
    g_c_cap = l_coarse_tune_mem_cap;
    set_ind(g_c_ind);
@@ -597,7 +593,7 @@ void sub_tune()
       g_c_cap = (char)(l_int_cap_mem);
       set_ind(g_c_ind);
       set_cap(g_c_cap);
-      g_i_SWR = l_int_swr_mem;
+      get_swr();
    }
    //
    CLRWDT();
