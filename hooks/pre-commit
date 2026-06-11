@@ -7,7 +7,19 @@
 MAIN_H="ATU_100_EXT_board/FirmWare_PIC16F1938/1938_EXT_MPLAB_sources_V_3.2/main.h"
 MAIN_C="ATU_100_EXT_board/FirmWare_PIC16F1938/1938_EXT_MPLAB_sources_V_3.2/main.c"
 
-# Only run when firmware files are staged
+# Run atusim on every commit (algorithm changes or not)
+if command -v gcc &>/dev/null && [ -f "tools/atusim.c" ]; then
+  if gcc -o /tmp/atusim tools/atusim.c -lm 2>/dev/null; then
+    if ! /tmp/atusim; then
+      echo "FAIL  atusim: algorithmic regression detected. Fix before committing."
+      exit 1
+    fi
+  else
+    echo "WARN  atusim: failed to compile tools/atusim.c — skipping scenario tests"
+  fi
+fi
+
+# Only run static checks when firmware files are staged
 if ! git diff --cached --name-only | grep -qE "1938_EXT_MPLAB_sources_V_3\.2/(main\.h|main\.c)$"; then
   exit 0
 fi
